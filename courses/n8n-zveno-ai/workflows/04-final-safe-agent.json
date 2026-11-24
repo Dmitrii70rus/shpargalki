@@ -1,0 +1,134 @@
+{
+  "name": "04-final-safe-agent.json",
+  "nodes": [
+    {
+      "id": "when-chat-message-received",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "parameters": {
+        "options": {}
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "ai-agent",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "parameters": {
+        "promptType": "auto",
+        "options": {
+          "systemMessage": "Ты помощник по учебным заявкам на мебель. Извлекай только предоставленные факты. По указанному SKU ОБЯЗАТЕЛЬНО вызывай catalog_lookup. Цена и остаток только из ответа инструмента. Если нет SKU, уточни. Не придумывай ничего. Никогда не отправляй заказы и сообщения и не меняй внешние системы. Если просят оформить заказ, подготовь только ЧЕРНОВИК и сообщи, что нужна отдельная проверка и одобрение человеком. Ответ дай по-русски с разделами «Факты», «Каталог», «Неизвестно», «Черновик», «Дальнейший шаг».",
+          "maxIterations": 7
+        }
+      },
+      "position": [
+        300,
+        0
+      ]
+    },
+    {
+      "id": "zvenoai-chat-model",
+      "name": "ZvenoAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "google/gemini-2.5-flash"
+        },
+        "options": {}
+      },
+      "position": [
+        300,
+        260
+      ]
+    },
+    {
+      "id": "conversation-memory",
+      "name": "Conversation Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "parameters": {
+        "sessionIdType": "fromInput",
+        "contextWindowLength": 8
+      },
+      "position": [
+        530,
+        260
+      ]
+    },
+    {
+      "id": "catalog-lookup",
+      "name": "Catalog Lookup",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "parameters": {
+        "name": "catalog_lookup",
+        "description": "Проверить товар по точному SKU, например CHAIR-101. Результат это JSON с ценой и остатком из учебного каталога.",
+        "jsCode": "const catalog = [{sku:\"CHAIR-101\",name:\"Кресло базовое\",price_rub:6500,stock:15},{sku:\"CHAIR-205\",name:\"Кресло эргономичное\",price_rub:12500,stock:8},{sku:\"DESK-110\",name:\"Стол письменный\",price_rub:14000,stock:5}];\nconst sku = String(typeof query === \"string\" ? query : query?.sku ?? \"\").trim().toUpperCase();\nconst result = catalog.find(r=>r.sku===sku);\nreturn JSON.stringify(result ? {status:\"found\",...result,source:\"учебный каталог\"} : {status:\"not_found\",sku,message:\"В учебном каталоге товар отсутствует\"});"
+      },
+      "position": [
+        770,
+        260
+      ]
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ZvenoAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catalog Lookup": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": []
+}
